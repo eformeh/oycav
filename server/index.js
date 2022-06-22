@@ -8,7 +8,7 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const jwt = require("jsonwebtoken")
 
-// connects to the data base to acces date in table
+// connects to the data base to access date in table
 const db = mysql.createPool({
     host: 'localhost',
     user: 'root',
@@ -43,6 +43,7 @@ app.get('/', (req, res) => {
 
 })
 
+// this part is for user response and request authentication 
 const verifyJWT = (req, res, next) => {
     const token = req.headers["x-access-token"]
 
@@ -138,36 +139,161 @@ app.post("/api/userreg", (req, res) => {
 })
 
 
+// this part is for admin request and response authentication
+
+app.get('/api/adminconfirm', (req, res) => {
+    if (req.session.user) {
+        res.send({ loggedIn: true, user: req.session.user })
+    } else {
+        res.send({ loggedIn: false, user: req.session.user })
+    }
+})
+app.post('/api/adminconfirm', (req, res) => {
 
 
-// app.get('/api/adminconfirm', (req, res) => {
-
-//     const sqlSelect = "Select * FROM admins";
-//     db.query(sqlSelect, (err, result) => {
-//         res.send(result)
-//     })
-
-// })
+    const email = req.body.email
+    const password = req.body.password
+    const sqlSelect = 'SELECT * FROM admins WHERE email = ?';
 
 
-// app.post("/api/adminreg", (req, res) => {
-//     const username = req.body.username
-//     const email = req.body.email
-//     const password = req.body.password
+
+    db.query(sqlSelect, [email], (err, result) => {
+        if (err) {
+            res.send({ err: err })
+        }
+        if (result.length > 0) {
+            bcrypt.compare(password, result[0].password, (error, response) => {
+                if (response) {
+                    req.session.user = result
+                    const name = result[0].name
+                    const id = result[0].id
+                    const token = jwt.sign({ id }, "jwtsecret", {
+                        expiresIn: 3000,
+                    })
+
+                    res.json({ auth: true, token: token, name: name });
+
+                } else {
+                    res.send({ message: "wrong username/password combination" });
+                }
+
+            })
+        } else {
+            res.send({ message: "admin does not exist" });
+        }
+
+    }
+    );
+
+});
 
 
-//     const sqlInsert = "INSERT INTO admins (name, email, password) VALUES (?,?,?)";
-//     db.query(sqlInsert, [username, email, password], (err, result) => {
-//         if (err) throw err;
-//         res.send({
-//             message: 'Table Data',
-//             Total_record: result.length,
-//             result: result
-//         });
+app.post("/api/adminreg", (req, res) => {
+    const name = req.body.name
+    const email = req.body.email
+    const password = req.body.password
+    const sqlInsert = "INSERT INTO admins (name, email, password) VALUES (?,?,?)";
 
-//     })
+    bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+            console.log(err)
+            res.send({ message: "0" })
+        } else {
+            db.query(sqlInsert, [name, email, hash], (err, result) => {
+                if (err) {
+                    console.log(err);
+                    res.send({ message: "0" })
+                } else {
+                    res.send({ message: '1' })
+                }
 
-// });
+            });
+
+        }
+
+    })
+})
+
+
+
+// this part is for field officer request and response authentication 
+
+app.get('/api/fieldofficerconfirm', (req, res) => {
+    if (req.session.user) {
+        res.send({ loggedIn: true, user: req.session.user })
+    } else {
+        res.send({ loggedIn: false, user: req.session.user })
+    }
+})
+app.post('/api/fieldofficerconfirm', (req, res) => {
+
+
+    const email = req.body.email
+    const password = req.body.password
+    const sqlSelect = 'SELECT * FROM fieldofficers WHERE email = ?';
+
+
+
+    db.query(sqlSelect, [email], (err, result) => {
+        if (err) {
+            res.send({ err: err })
+        }
+        if (result.length > 0) {
+            bcrypt.compare(password, result[0].password, (error, response) => {
+                if (response) {
+                    req.session.user = result
+                    const name = result[0].name
+                    const id = result[0].id
+                    const token = jwt.sign({ id }, "jwtsecret", {
+                        expiresIn: 3000,
+                    })
+
+                    res.json({ auth: true, token: token, name: name });
+
+                } else {
+                    res.send({ message: "wrong username/password combination" });
+                }
+
+            })
+        } else {
+            res.send({ message: "user does not exist" });
+        }
+
+    }
+    );
+
+});
+
+
+app.post("/api/fieldofficerreg", (req, res) => {
+    const name = req.body.name
+    const email = req.body.email
+    const password = req.body.password
+    const phone = req.body.phone
+    const sqlInsert = "INSERT INTO fieldofficers (name, email, password,phone) VALUES (?,?,?,?)";
+
+    bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+            console.log(err)
+            res.send({ message: "0" })
+        } else {
+            db.query(sqlInsert, [name, email, hash, phone], (err, result) => {
+                if (err) {
+                    console.log(err);
+                    res.send({ message: "0" })
+                } else {
+                    res.send({ message: '1' })
+                }
+
+            });
+
+        }
+
+    })
+})
+
+
+
 
 app.listen(3001, () => {
     console.log("running on port 3001")
